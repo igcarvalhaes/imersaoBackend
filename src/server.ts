@@ -7,6 +7,12 @@ import {
   validatorCompiler,
 } from "fastify-type-provider-zod";
 
+import {
+  createBookSchema,
+  bookResponseSchema,
+  idParamsSchema,
+} from "./schemas/livro.js";
+
 const app = fastify().withTypeProvider<ZodTypeProvider>();
 
 app.setSerializerCompiler(serializerCompiler);
@@ -17,22 +23,9 @@ app.post(
   "/livros",
   {
     schema: {
-      body: z.object({
-        nome: z.string(),
-        autor: z.string(),
-        preco: z.number(),
-        quantidade: z.number(),
-      }),
+      body: createBookSchema,
       response: {
-        201: z.object({
-          id: z.string(),
-          nome: z.string(),
-          autor: z.string(),
-          preco: z.number(),
-          quantidade: z.number(),
-          createdAt: z.date(),
-          updatedAt: z.date(),
-        }),
+        201: bookResponseSchema,
         500: z.object({
           error: z.string(),
         }),
@@ -63,17 +56,7 @@ app.get(
   {
     schema: {
       response: {
-        200: z.array(
-          z.object({
-            id: z.string(),
-            nome: z.string(),
-            autor: z.string(),
-            preco: z.number(),
-            quantidade: z.number(),
-            createdAt: z.date(),
-            updatedAt: z.date(),
-          })
-        ),
+        200: z.array(bookResponseSchema),
         500: z.object({
           error: z.string(),
         }),
@@ -94,25 +77,10 @@ app.put(
   "/livros/:id",
   {
     schema: {
-      params: z.object({
-        id: z.string(),
-      }),
-      body: z.object({
-        nome: z.string(),
-        autor: z.string(),
-        preco: z.number(),
-        quantidade: z.number(),
-      }),
+      params: idParamsSchema,
+      body: createBookSchema,
       response: {
-        200: z.object({
-          id: z.string(),
-          nome: z.string(),
-          autor: z.string(),
-          preco: z.number(),
-          quantidade: z.number(),
-          createdAt: z.date(),
-          updatedAt: z.date(),
-        }),
+        200: bookResponseSchema,
         500: z.object({
           error: z.string(),
         }),
@@ -145,9 +113,7 @@ app.delete(
   "/livros/:id",
   {
     schema: {
-      params: z.object({
-        id: z.string(),
-      }),
+      params: idParamsSchema,
       response: {
         200: z.object({
           message: z.string(),
@@ -178,7 +144,7 @@ app.get("/", () => {
 });
 
 app.listen({ port: 3000 }, () => {
-  console.log("Server rodandnop no http://localhost:3000");
+  console.log("Server rodando no http://localhost:3000");
 });
 
 //  Métodos HTTP: GET, POST, PUT, DELETE, PATCH
