@@ -13,6 +13,7 @@ import { listarLivros } from "./routes/livros/listar-livros.js";
 import { atualizarLivros } from "./routes/livros/atualizar-livros.js";
 import { removerLivros } from "./routes/livros/remover-livros.js";
 import { profile } from "./routes/usuarios/profile.js";
+import { env } from "./utils/env.js";
 
 const app = fastify().withTypeProvider<ZodTypeProvider>();
 
@@ -29,7 +30,7 @@ app.register(login);
 app.register(profile);
 
 app.register(fastifyJwt, {
-  secret: "secret",
+  secret: env.SECRET_JWT,
 });
 
 //  publicar livro
@@ -47,6 +48,6 @@ app.get("/", () => {
   return { message: "Hello World" };
 });
 
-app.listen({ port: 3000 }, () => {
-  console.log("Server rodando no http://localhost:3000");
+app.listen({ port: 3000 }).then(() => {
+  console.log(`Server rodando no http://localhost:${env.PORT}`);
 });
