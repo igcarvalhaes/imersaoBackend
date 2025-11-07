@@ -1,11 +1,5 @@
 import "dotenv/config";
-import { z } from "zod";
-
-const envSchema = z.object({
-  DATABASE_URL: z.string().min(1),
-  SECRET_JWT: z.string().min(8),
-  PORT: z.coerce.number().optional().default(3000),
-});
+import { envSchema } from "../schemas/env.js";
 
 const parsed = envSchema.safeParse(process.env);
 

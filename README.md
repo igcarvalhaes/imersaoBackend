@@ -26,12 +26,15 @@ src/
 │  ├─ user.ts             # Zod schemas relacionados a User
 │  └─ livro.ts            # Zod schemas para Livro
 ├─ utils/
+│  ├─ env.ts              # carrega e valida variáveis de ambiente
 │  └─ hash.ts             # hashPassword, comparePassword
 └─ server.ts              # instancia Fastify, registra plugins e rotas
 
 prisma/
 ├─ schema.prisma          # models (Livros, User, etc.)
 
+.env                      # variáveis de ambiente (não commitado)
+.env.example              # template de .env
 README.md                 # este arquivo
 AUTH.md                   # guia de autenticação JWT
 ```
@@ -96,7 +99,85 @@ Notas:
 
 ---
 
-## 📦 src/lib/prisma.ts — instância do PrismaClient
+## � src/utils/env.ts — Gerenciamento de variáveis de ambiente
+
+Arquivo central para carregar e validar variáveis de ambiente usando Zod. Garante que o app só inicia se todas as variáveis requeridas estiverem presentes e corretas.
+
+```ts
+// src/utils/env.ts
+import "dotenv/config";
+import { z } from "zod";
+
+const envSchema = z.object({
+  DATABASE_URL: z.string().min(1),
+  SECRET_JWT: z.string().min(8),
+  PORT: z.coerce.number().optional().default(3000),
+});
+
+const parsed = envSchema.safeParse(process.env);
+
+if (!parsed.success) {
+  console.error("❌ Variáveis de ambiente inválidas:", parsed.error.format());
+  process.exit(1);
+}
+
+export const env = parsed.data;
+```
+
+**Como usar no `server.ts`:**
+
+```ts
+import { env } from "./utils/env.js";
+
+app.register(fastifyJwt, {
+  secret: env.SECRET_JWT, // variável tipada e validada
+});
+
+app
+  .listen({ port: env.PORT, host: "0.0.0.0" })
+  .then(() => console.log(`Server rodando na porta ${env.PORT}`))
+  .catch((err) => {
+    console.error("Failed to start server", err);
+    process.exit(1);
+  });
+```
+
+**Vantagens dessa abordagem:**
+
+- ✅ **Validação na inicialização**: se uma variável estiver faltando ou inválida, o app falha no startup (não durante runtime).
+- ✅ **Tipagem automática**: o TypeScript infere os tipos das variáveis via Zod (autocomplete).
+- ✅ **Centralizado**: todas as variáveis em um único lugar.
+- ✅ **Reutilizável**: qualquer módulo importa `env` e acessa variáveis já validadas.
+
+### Arquivo `.env` (não commitado)
+
+Crie um arquivo `.env` na raiz do projeto com suas variáveis:
+
+```env
+DATABASE_URL="mysql://root:senha@localhost:3306/seu_database"
+SECRET_JWT="sua_secret_super_segura_aqui_min_8_caracteres"
+PORT=3000
+```
+
+**Importante:** adicione `.env` no `.gitignore` para não expor dados sensíveis:
+
+```gitignore
+.env
+```
+
+### Arquivo `.env.example` (commitado)
+
+Crie um template `.env.example` para que outros desenvolvedores saibam quais variáveis são necessárias:
+
+```env
+DATABASE_URL="mysql://user:password@host:port/database"
+SECRET_JWT="seu_jwt_secret_super_seguro_aqui"
+PORT=3000
+```
+
+---
+
+## �📦 src/lib/prisma.ts — instância do PrismaClient
 
 Crie um único cliente Prisma e exporte para o app:
 
@@ -413,7 +494,19 @@ Passos para rodar localmente:
 npm install
 ```
 
-2. Gerar o client do Prisma (sempre que `schema.prisma` mudar):
+2. Configure variáveis de ambiente (crie `.env` na raiz do projeto baseado em `.env.example`):
+
+```bash
+# Copie o template
+cp .env.example .env
+
+# Edite .env com seus valores reais
+# DATABASE_URL="seu_database_url"
+# SECRET_JWT="seu_jwt_secret"
+# PORT=3000
+```
+
+3. Gerar o client do Prisma (sempre que `schema.prisma` mudar):
 
 ```bash
 npx prisma generate
@@ -421,13 +514,15 @@ npx prisma generate
 npx prisma migrate dev --name init
 ```
 
-3. Inicie em modo dev:
+4. Inicie em modo dev:
 
 ```bash
 npm run dev
 ```
 
-4. Teste endpoints com Insomnia/Postman/cURL.
+O servidor carrega as variáveis de `.env`, valida com Zod em `src/utils/env.ts`, e inicia na porta configurada.
+
+5. Teste endpoints com Insomnia/Postman/cURL.
 
 ---
 
@@ -441,10 +536,18 @@ npm run dev
 
 ## ✅ Checklist rápido de debugging
 
-- Servidor não inicia: verifique se existe outra aplicação na porta 3000 (`netstat -ano | findstr :3000`)
-- Erro do Prisma: rode `npx prisma generate` e cheque `DATABASE_URL` no `.env`
-- Erro de validação: verifique o JSON enviado e os schemas Zod
-- Erro de rota (assertion error do fastify): verifique se a rota tem `/` inicial e se `app.register` está correto
+- **Servidor não inicia**:
+  - Verifique se existe outra aplicação na porta 3000 (`netstat -ano | findstr :3000`)
+  - Verifique se o arquivo `.env` existe e está no diretório raiz
+  - Verifique as variáveis de ambiente — rode o comando abaixo para ver o erro:
+    ```bash
+    npm run dev
+    # vai mostrar erro de validação Zod se faltarem variáveis
+    ```
+- **Erro "Variáveis de ambiente inválidas"**: verifique se `DATABASE_URL` e `SECRET_JWT` estão presentes e corretos no `.env`
+- **Erro do Prisma**: rode `npx prisma generate` e cheque `DATABASE_URL` no `.env` (formato MySQL: `mysql://user:password@host:port/database`)
+- **Erro de validação**: verifique o JSON enviado e os schemas Zod
+- **Erro de rota (assertion error do fastify)**: verifique se a rota tem `/` inicial e se `app.register` está correto
 
 ---
 
